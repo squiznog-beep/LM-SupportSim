@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support Sim</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Silkscreen&display=swap">
+<style>
+/* Layout: steps chain | preview + inspector | event code. Two columns under 1180px, one under 760px. */
+:root {
+  --bg: #f1eeea; --panel: #ffffff; --panel-2: #ece7e1; --ink: #1a1614; --muted: #564e48; --line: #c9bfb5; --btn-line: #b3a79c;
+  --ember: #c2410c; --ember-ink: #ffffff; --ember-soft: #fde6d8;
+  --code-bg: #f7f4f0; --warn: #8a5200; --warn-bg: #fff1d6; --ok: #2f6b3a; --focus: #1d4ed8; --screen-frame: #2a2421;
+  --g-talk: #3f3a36; --g-cast: #c2410c; --g-scene: #2563a8; --g-sound: #2f7d4a; --g-code: #7c6f66; --g-flow: #7c3aed;
+  --sel-bg: #fff4ec; --hl-line: #fde6d8;
+  --font-body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-code: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-display: "Silkscreen", "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1815; --panel: #26221e; --panel-2: #312b26; --ink: #f6f1ec; --muted: #cbc1b8; --line: #4d443d; --btn-line: #6a5f56;
+    --ember: #f07a3c; --ember-ink: #1a0f08; --ember-soft: #43261a; --code-bg: #1b1816; --warn: #f3c46b; --warn-bg: #3a2c12;
+    --ok: #8fcf98; --focus: #8ab4ff; --screen-frame: #0c0a09;
+    --g-talk: #d9d2cb; --g-cast: #f07a3c; --g-scene: #7fb0ea; --g-sound: #7fcf98; --g-code: #a79d95; --g-flow: #b69cf5; --g-flow: #b69cf5;
+    --sel-bg: #2e231c; --hl-line: #43261a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1815; --panel: #26221e; --panel-2: #312b26; --ink: #f6f1ec; --muted: #cbc1b8; --line: #4d443d; --btn-line: #6a5f56;
+  --ember: #f07a3c; --ember-ink: #1a0f08; --ember-soft: #43261a; --code-bg: #1b1816; --warn: #f3c46b; --warn-bg: #3a2c12;
+  --ok: #8fcf98; --focus: #8ab4ff; --screen-frame: #0c0a09;
+  --g-talk: #d9d2cb; --g-cast: #f07a3c; --g-scene: #7fb0ea; --g-sound: #7fcf98; --g-code: #a79d95;
+  --sel-bg: #2e231c; --hl-line: #43261a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14.5px; line-height: 1.45; }
+button, select, input, textarea { font: inherit; color: var(--ink); }
+button { background: var(--panel); border: 1px solid var(--btn-line); border-radius: 7px; padding: 5px 10px; cursor: pointer; line-height: 1.3; }
+button:hover { border-color: var(--muted); }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--ember); color: var(--ember-ink); border-color: var(--ember); font-weight: 700; }
+button.ghost { background: transparent; border-color: transparent; }
+button.ghost:hover { border-color: var(--line); }
+button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+input[type="text"], input[type="number"], select, textarea { background: var(--bg); border: 1px solid var(--btn-line); border-radius: 6px; padding: 5px 8px; }
+input[type="number"] { width: 90px; }
+kbd { font-family: var(--font-code); font-size: 11.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--bg); }
+.hint { color: var(--muted); font-size: 12.5px; }
+
+/* Top bar */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.top h1 { font-family: var(--font-display); font-weight: 400; font-size: 18px; margin: 0; letter-spacing: .02em; white-space: nowrap; }
+.top .ev { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.top .ev input { width: 220px; font-family: var(--font-code); font-size: 13px; }
+.top .tools { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+#bProject { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-now { margin: 0 0 12px; line-height: 1.5; }
+
+/* Main grid: desktop fills the window; the preview stays put while the step editor scrolls */
+body { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.top { flex: 0 0 auto; }
+.app { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr) 340px; grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "steps stage code" "steps edit code"; gap: 12px; padding: 12px 16px 16px; }
+.steps-col { grid-area: steps; } .stage { grid-area: stage; } .edit-col { grid-area: edit; } .code-col { grid-area: code; }
+.col { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.col-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.col-head h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; margin: 0; color: var(--muted); }
+.col-head .spacer { flex: 1; }
+.scroll { overflow: auto; min-height: 0; flex: 1; }
+.stage { display: grid; gap: 8px; min-width: 0; }
+.edit-col { min-height: 0; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 8px; }
+.mtabs, .fab, .touch-hint { display: none; }
+.help { padding: 10px 14px; }
+.help-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.help ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 4px; font-size: 14px; }
+.snd { display: inline-block; font-size: 13px; color: var(--muted); }
+.snd summary { cursor: pointer; padding: 5px 8px; border: 1px solid var(--btn-line); border-radius: 7px; list-style: none; color: var(--ink); }
+.snd summary::-webkit-details-marker { display: none; }
+.snd[open] { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+/* Steps chain ("mind map") */
+.branch { list-style: none; margin: 2px 0; }
+.lane { margin: 6px 0; padding: 4px 0 4px 10px; border-left: 3px solid var(--g-flow); border-radius: 0 0 0 8px; }
+.lane:not(.taken) { opacity: .78; }
+.lane-steps { list-style: none; margin: 0; padding: 0; }
+.lane .cn { display: none; }
+body.timeline .lane .cn { display: block; }
+.bub.arm-head { background: color-mix(in srgb, var(--g-flow) 10%, var(--bg)); }
+.bub.join { background: color-mix(in srgb, var(--g-flow) 10%, var(--bg)); }
+.bub.join .grip { cursor: ew-resize; }
+.qe .opts { flex-wrap: wrap; gap: 6px; }
+.qe .opt { display: inline-flex; align-items: center; gap: 2px; }
+.qe .opt .x { padding: 2px 7px; }
+.branchbar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 13px; padding: 6px 2px 0; }
+.branchbar .lbl { color: var(--muted); }
+.branchbar .bv { display: inline-flex; align-items: center; gap: 4px; }
+.chain { list-style: none; margin: 0; padding: 10px 10px 40px; }
+.gap { position: relative; height: 18px; display: flex; justify-content: center; align-items: center; }
+.gap::before { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; border-left: 2px solid var(--line); }
+.gap.together::before { border-left-style: dashed; border-left-color: var(--ember); }
+.gap .ins { position: relative; z-index: 1; width: 22px; height: 18px; padding: 0; border-radius: 9px; font-size: 13px; line-height: 1; color: var(--muted); background: var(--panel); opacity: 0; transition: opacity .12s; }
+.gap:hover .ins, .gap .ins:focus-visible, .gap.open .ins { opacity: 1; }
+@media (hover: none) { .gap .ins { opacity: .8; } }
+.gap .tog { position: relative; z-index: 1; font-size: 10.5px; color: var(--ember); background: var(--panel); padding: 0 5px; margin-left: 6px; }
+.bub { position: relative; display: flex; gap: 8px; align-items: flex-start; padding: 7px 9px 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); cursor: pointer; }
+.bub::before { content: ""; position: absolute; left: -1px; top: 6px; bottom: 6px; width: 4px; border-radius: 0 3px 3px 0; background: var(--gc, var(--g-code)); }
+.bub.g-flow { --gc: var(--g-flow); }
+.bub.g-talk { --gc: var(--g-talk); } .bub.g-cast { --gc: var(--g-cast); } .bub.g-scene { --gc: var(--g-scene); } .bub.g-sound { --gc: var(--g-sound); } .bub.g-code { --gc: var(--g-code); }
+.bub:hover { border-color: var(--muted); }
+.bub.sel { border-color: var(--ember); background: var(--sel-bg); box-shadow: 0 0 0 1px var(--ember); }
+.bub.playing { box-shadow: 0 0 0 2px var(--focus); }
+.bub.drag-over-top { box-shadow: 0 -3px 0 0 var(--ember); }
+.bub.drag-over-bottom { box-shadow: 0 3px 0 0 var(--ember); }
+.bub .face { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 5px; image-rendering: pixelated; background: #000; object-fit: cover; }
+.bub .bgthumb { width: 42px; height: 28px; flex: 0 0 42px; border-radius: 4px; image-rendering: pixelated; object-fit: cover; }
+.bub .ic { width: 30px; flex: 0 0 30px; height: 30px; display: grid; place-items: center; border-radius: 6px; background: var(--panel-2); color: var(--gc); font-size: 15px; }
+.bub .body { min-width: 0; flex: 1; }
+.bub .kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); display: flex; gap: 6px; }
+.bub .kind .warn { color: var(--warn); text-transform: none; letter-spacing: 0; }
+.bub .txt { font-size: 13.5px; overflow-wrap: anywhere; }
+.bub .who { font-weight: 700; }
+.bub code, .codeish { font-family: var(--font-code); font-size: 12px; }
+.bub .num { position: absolute; right: 8px; top: 6px; font-size: 10px; color: var(--muted); font-family: var(--font-code); }
+.wait-mark { color: var(--ember); font-size: 11px; }
+.fx-wave { display: inline-block; text-decoration: underline wavy; text-decoration-color: var(--ember); }
+.fx-jitter { text-decoration: underline dotted; }
+
+/* Stage */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.screen { position: relative; background: var(--screen-frame); border-radius: 10px; padding: 8px; }
+canvas#screen { display: block; width: 100%; max-width: min(640px, 64vh); margin: 0 auto; aspect-ratio: 3 / 2; image-rendering: pixelated; image-rendering: crisp-edges; cursor: pointer; border-radius: 4px; background: #000; }
+.transport { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.transport .spacer { flex: 1 1 auto; }
+.vol { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; }
+.vol input { width: 80px; accent-color: var(--ember); }
+.status { font-size: 12.5px; color: var(--muted); }
+
+/* On stage: character cards */
+.onstage { display: flex; flex-wrap: wrap; gap: 8px; }
+.card { display: grid; grid-template-columns: 44px 1fr; gap: 4px 8px; align-items: center; padding: 7px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); min-width: 0; flex: 1 1 250px; }
+.card .face { width: 44px; height: 44px; border-radius: 6px; image-rendering: pixelated; background: #000; grid-row: span 2; }
+.card .nm { font-weight: 700; font-size: 13.5px; display: flex; gap: 6px; align-items: baseline; }
+.card .nm span { font-weight: 400; color: var(--muted); font-size: 12px; }
+.card .acts { display: flex; flex-wrap: wrap; gap: 4px; }
+.card .acts button { font-size: 12px; padding: 2px 7px; }
+.card.add { display: flex; align-items: center; justify-content: center; border-style: dashed; color: var(--muted); cursor: pointer; flex: 0 1 170px; min-height: 60px; }
+
+/* Quick add */
+.quick { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.quick .lbl { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
+.quick button { font-size: 12.5px; padding: 3px 9px; }
+
+/* Inspector */
+.insp { padding: 12px 14px; display: grid; gap: 12px; }
+.insp h3 { margin: 0; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.insp h3 .n { font-size: 12px; color: var(--muted); font-weight: 400; }
+.fld { display: grid; gap: 5px; }
+.fld > .lab { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.seg button { font-size: 12.5px; padding: 3px 9px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 2px; border-radius: 7px; font-size: 13px; }
+.chip img { width: 26px; height: 26px; border-radius: 5px; image-rendering: pixelated; background: #000; }
+.chip.text { padding: 3px 9px; }
+.assetbtn { display: inline-flex; align-items: center; gap: 10px; padding: 4px 12px 4px 4px; }
+.assetbtn img { height: 48px; border-radius: 5px; image-rendering: pixelated; background: #000; }
+.assetbtn .an { font-weight: 700; }
+.assetbtn .ch { font-size: 12px; color: var(--muted); }
+textarea.linetext { width: 100%; min-height: 76px; resize: vertical; font-size: 15px; line-height: 1.5; }
+textarea.code { width: 100%; min-height: 110px; font-family: var(--font-code); font-size: 12.5px; }
+.stylebar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.stylebar .sw { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid var(--panel); box-shadow: 0 0 0 1px var(--line); }
+.stylebar .sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+.stylebar button:not(.sw) { font-size: 12.5px; padding: 2px 8px; }
+.facepv { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.facepv canvas { width: 144px; height: 120px; image-rendering: pixelated; background: #000; border-radius: 6px; }
+.check { display: flex; gap: 7px; align-items: flex-start; font-size: 13.5px; }
+.check input { margin-top: 3px; accent-color: var(--ember); }
+.foot { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
+.foot .spacer { flex: 1; }
+.danger { color: #b42318; }
+.empty { padding: 18px; color: var(--muted); text-align: center; }
+
+/* Code panel */
+.codeview { font-family: var(--font-code); font-size: 12.5px; line-height: 1.6; padding: 6px 0; counter-reset: ln; }
+.cl { display: grid; grid-template-columns: 34px 1fr; padding-right: 10px; cursor: pointer; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cl::before { counter-increment: ln; content: counter(ln); color: var(--muted); text-align: right; padding-right: 10px; opacity: .7; }
+.cl:hover { background: var(--panel-2); }
+.cl.sel { background: var(--hl-line); }
+.cl.playing { box-shadow: inset 3px 0 0 var(--focus); }
+.cl .c-cmd { color: var(--ember); font-weight: 600; }
+.cl .c-cm { color: var(--muted); font-style: italic; }
+.cl .c-tag { color: var(--g-scene); }
+.cl .c-kw { color: var(--g-sound); }
+textarea.codeedit { flex: 1; margin: 8px; min-height: 300px; resize: none; font-family: var(--font-code); font-size: 12.5px; line-height: 1.6; white-space: pre; background: var(--code-bg); }
+.problems { display: grid; gap: 4px; padding: 8px; border-top: 1px solid var(--line); max-height: 160px; overflow: auto; }
+.problems:empty { display: none; }
+.problem { background: var(--warn-bg); color: var(--warn); border-radius: 6px; padding: 4px 8px; font-size: 12.5px; cursor: pointer; text-align: left; border: 0; }
+
+/* Dialogs (full-screen sheets on phones, Cancel/Use always visible) */
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); padding: 0; width: min(980px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); box-shadow: 0 20px 60px rgba(0,0,0,.35); overflow: hidden; }
+dialog::backdrop { background: rgba(0,0,0,.5); }
+#dKeys, #dWords { width: min(680px, calc(100vw - 32px)); }
+.dlg { display: flex; flex-direction: column; max-height: calc(100vh - 34px); max-height: calc(100dvh - 34px); }
+.dlg-head { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.dlg-head h2 { margin: 0; font-size: 16px; }
+.dlg-head .spacer { flex: 1; }
+.dlg-body { flex: 1 1 auto; padding: 14px 16px; overflow: auto; min-height: 0; }
+.dlg-foot { flex: 0 0 auto; display: flex; gap: 8px; justify-content: flex-end; padding: 10px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; align-items: center; background: var(--panel); }
+.dlg-foot .spacer { flex: 1; }
+.picker { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; min-height: 0; }
+@media (max-width: 760px) { .picker { grid-template-columns: minmax(0, 1fr); } }
+.pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; align-content: start; max-height: 60vh; overflow: auto; padding: 2px; }
+.pgrid.wide { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.pgrid.list { grid-template-columns: minmax(0, 1fr); }
+.tile { display: grid; gap: 4px; justify-items: center; padding: 6px; border-radius: 9px; font-size: 12.5px; text-align: center; overflow-wrap: anywhere; }
+.tile img { width: 100%; image-rendering: pixelated; border-radius: 5px; background: #000; }
+.tile[aria-selected="true"] { border-color: var(--ember); box-shadow: 0 0 0 2px var(--ember); background: var(--sel-bg); }
+.tile.aud { grid-template-columns: auto 1fr; justify-items: start; text-align: left; align-items: center; }
+.pprev { display: grid; gap: 10px; align-content: start; }
+.pprev canvas { width: 100%; image-rendering: pixelated; background: #000; border-radius: 8px; }
+.pprev .pn { font-weight: 700; font-size: 16px; }
+.words { display: grid; gap: 6px; }
+.words .wr { display: grid; grid-template-columns: 1fr 150px auto auto; gap: 6px; align-items: center; }
+.paste { min-height: 90px; border: 1.5px dashed var(--line); border-radius: 8px; padding: 10px; background: var(--code-bg); color: var(--muted); overflow: auto; }
+.paste:focus { border-color: var(--ember); }
+.form2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.menu { position: fixed; z-index: 50; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 34px rgba(0,0,0,.25); padding: 10px; display: grid; gap: 8px; width: 330px; max-width: calc(100vw - 16px); }
+.menu .grp { display: grid; gap: 4px; }
+.menu .gl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.menu .row button { font-size: 12.5px; padding: 3px 8px; }
+.menu .menu-close { justify-self: end; }
+@media (max-width: 760px) {
+  .menu { left: 0 !important; right: 0; top: auto !important; bottom: 0; width: 100%; max-width: none; border-radius: 14px 14px 0 0; max-height: 75vh; overflow: auto;
+    padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -10px 40px rgba(0,0,0,.45); }
+  .menu .row button { font-size: 15px; padding: 8px 12px; }
+}
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.25); z-index: 100; }
+/* Inline editor inside the selected step */
+.qe { margin-top: 8px; display: grid; gap: 7px; cursor: default; }
+.qe .qrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.qe .ql { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.qe select, .qe input[type="number"], .qe input[type="text"] { padding: 3px 6px; font-size: 13px; }
+.qe input[type="number"] { width: 76px; }
+.qe textarea { width: 100%; min-height: 52px; font-size: 14px; resize: vertical; }
+.qe button { font-size: 12.5px; padding: 3px 9px; }
+.qe .chip img { width: 22px; height: 22px; }
+.qe .qthumb { height: 22px; width: 33px; border-radius: 3px; vertical-align: middle; margin-right: 5px; image-rendering: pixelated; }
+.qe .qacts { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; border-top: 1px dashed var(--line); padding-top: 7px; }
+.qe .qacts .spacer { flex: 1; }
+.bub .grip { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; color: var(--muted); padding: 6px 2px; margin: -4px 0 -4px -4px; align-self: center; font-size: 15px; line-height: 1; }
+.bub .grip:hover { color: var(--ink); }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; user-select: none; }
+.bub.dragging { opacity: .45; }
+.bub.drop-before { box-shadow: 0 -4px 0 0 var(--ember); }
+.bub.drop-after { box-shadow: 0 4px 0 0 var(--ember); }
+table.keys { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.keys th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 12px 0 4px; }
+table.keys td { padding: 5px 10px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.keys td:first-child { white-space: nowrap; width: 1%; }
+
+/* Timeline layout: steps as a strip along the bottom, the selected one centred and opened up */
+body.timeline .app { grid-template-columns: minmax(0, 1fr) 400px 340px; grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "stage edit code" "steps steps steps"; }
+body.timeline .steps-col { height: clamp(220px, 36vh, 340px); }
+body.timeline .stage { min-height: 0; overflow: hidden; }
+body.timeline .steps-col .col-head { padding: 6px 12px; }
+body.timeline #chainWrap { overflow-x: auto; overflow-y: auto; scroll-behavior: auto; }
+body.timeline .chain { display: flex; flex-direction: row; align-items: center; width: max-content; min-width: 100%; padding: 16px 40vw 16px 16px; position: relative; }
+body.timeline .gap { width: 34px; height: auto; align-self: stretch; flex: 0 0 34px; }
+body.timeline .gap::before { top: 50%; bottom: auto; left: 0; right: 0; border-left: 0; border-top: 2px solid var(--line); }
+body.timeline .gap.together::before { border-top-style: dashed; border-top-color: var(--ember); }
+body.timeline .gap .ins { opacity: .55; }
+body.timeline .gap .tog { position: absolute; top: calc(50% + 8px); left: 50%; transform: translateX(-50%); margin: 0; font-size: 10px; white-space: nowrap; }
+body.timeline .bub { width: 172px; flex: 0 0 auto; min-height: 92px; transition: transform .14s ease, box-shadow .14s; transform-origin: center center; }
+body.timeline .bub .txt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; }
+body.timeline .bub.sel { width: 380px; }
+body.timeline .bub.sel .txt { -webkit-line-clamp: 2; }
+body.timeline .bub:not(.sel):hover { transform: scale(1.13); z-index: 3; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+body.timeline .bub:not(.sel):hover + .gap + .bub:not(.sel),
+body.timeline .bub:not(.sel):has(+ .gap + .bub:not(.sel):hover) { transform: scale(1.05); z-index: 2; }
+body.timeline .bub.drop-before { box-shadow: -4px 0 0 0 var(--ember); }
+/* branches in the timeline: a lane per path between the fork and the rejoin */
+body.timeline .branch { display: flex; align-items: center; flex: 0 0 auto; }
+body.timeline .branch .lanes { display: flex; flex-direction: column; padding: 2px 0; }
+body.timeline .lane { display: flex; align-items: center; padding: 5px 14px; position: relative; border-left: 0; border-radius: 0; margin: 0; }
+body.timeline .lane .cn { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--g-flow); }
+body.timeline .lane .cn.cn-l { left: 0; } body.timeline .lane .cn.cn-r { right: 0; }
+body.timeline .lane:first-child .cn { top: 50%; } body.timeline .lane:last-child .cn { bottom: 50%; }
+body.timeline .lane:only-child .cn { display: none; }
+body.timeline .lane::before, body.timeline .lane::after { content: ""; position: absolute; top: 50%; width: 14px; border-top: 2px solid var(--g-flow); }
+body.timeline .lane::before { left: 0; } body.timeline .lane::after { right: 0; }
+body.timeline .lane-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: row; align-items: center; }
+body.timeline .lane-steps { flex: 1 1 auto; }
+body.timeline .lane-steps > .gap:last-child { flex: 1 0 40px; }
+body.timeline .bub.arm-head { width: 138px; min-height: 64px; }
+body.timeline .bub.join { width: 118px; min-height: 64px; }
+body.timeline .bub.arm-head.sel, body.timeline .bub.join.sel { width: 360px; }
+body.timeline.has-branches .steps-col { height: clamp(300px, 48vh, 520px); }
+body.timeline .bub.drop-after { box-shadow: 4px 0 0 0 var(--ember); }
+body.timeline .stage { align-content: start; }
+body.timeline canvas#screen { max-width: min(100%, calc((100vh - clamp(220px, 36vh, 340px) - 230px) * 1.5)); }
+body.timeline .edit-col { padding-right: 2px; }
+@media (max-width: 1180px) {
+  body.timeline .app { grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "stage edit" "steps steps" "code code"; }
+  body.timeline .steps-col { position: static; max-height: none; height: auto; }
+  body.timeline #chainWrap { max-height: 380px; }
+  body.timeline canvas#screen { max-width: min(100%, 64vh); }
+  body.timeline .edit-col { max-height: 60vh; overflow: auto; }
+}
+
+/* ---- Screen-size rules last, so they win ---- */
+@media (max-width: 1180px) {
+  body { height: auto; display: block; }
+  .app { grid-template-columns: 290px minmax(0, 1fr); grid-template-areas: "steps stage" "steps edit" "code code"; }
+  .steps-col { max-height: calc(100vh - 24px); position: sticky; top: 12px; align-self: start; }
+  .edit-col { overflow: visible; }
+  .code-col .scroll { max-height: 420px; }
+}
+/* Phones: preview pinned at the top, one panel at a time */
+@media (max-width: 760px) {
+  body { font-size: 15px; }
+  .top { padding: 8px 12px; gap: 6px 10px; }
+  .top h1 { font-size: 16px; }
+  .top .ev input { width: 150px; }
+  .top .tools { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .top .tools button { white-space: nowrap; }
+  .app { display: flex; flex-direction: column; padding: 0 12px 96px; }
+  .stage { order: -1; }
+  .stage { position: sticky; top: 0; z-index: 30; background: var(--bg); padding: 8px 0 0; margin: 0 -12px; padding-inline: 12px; box-shadow: 0 6px 10px -8px rgba(0,0,0,.4); gap: 6px; }
+  .screen { padding: 4px; border-radius: 8px; }
+  canvas#screen { max-width: min(100%, 40vh); }
+  body.typing canvas#screen { max-width: min(100%, 30vh); }
+  .transport { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .transport > * { flex: 0 0 auto; }
+  #bPlayAll, #bAuto { display: none; }
+  .status { font-size: 12px; min-height: 0; }
+  .mtabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 0 -12px; padding: 0 8px; }
+  .mtabs button { flex: 1; border: 0; border-radius: 0; background: transparent; padding: 10px 4px; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; min-height: 44px; }
+  .mtabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ember); }
+  .steps-col, .edit-col, .code-col { display: none !important; }
+  body[data-mtab="steps"] .steps-col, body[data-mtab="code"] .code-col { display: flex !important; margin-top: 10px; position: static; max-height: none; }
+  body[data-mtab="edit"] .edit-col { display: flex !important; margin-top: 10px; overflow: visible; }
+  .steps-col .scroll, .code-col .scroll { overflow: visible; max-height: none; }
+  .hover-hint { display: none; } .touch-hint { display: inline; }
+  .desk-only { display: none !important; }
+  .fab { display: block; position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; padding: 12px 18px; border-radius: 28px;
+    background: var(--ember); color: var(--ember-ink); border: 0; font-weight: 700; font-size: 16px; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+  body[data-mtab="code"] .fab { display: none; }
+  .card { flex-basis: 100%; }
+  .quick { display: none; }
+}
+/* Touch screens: bigger targets, + buttons always visible */
+@media (pointer: coarse) {
+  button, select, input[type="text"], input[type="number"] { min-height: 40px; }
+  .seg button, .quick button, .card .acts button, .stylebar button:not(.sw), .chip { min-height: 38px; padding: 6px 12px; }
+  .stylebar .sw { width: 32px; height: 32px; min-height: 32px; }
+  .gap { height: 34px; }
+  .gap .ins { opacity: 1; width: 40px; height: 28px; font-size: 17px; }
+  .hover-hint { display: none; } .touch-hint { display: inline; }
+}
+@media (max-width: 760px) {
+  dialog { width: 100vw; max-width: 100vw; height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh; margin: 0; border: 0; border-radius: 0; }
+  .dlg { height: 100%; max-height: none; }
+  .dlg-head #pkSearch { width: 100%; }
+  .dlg-foot { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .dlg-foot .row { width: 100%; }
+  .dlg-foot button { flex: 1; min-height: 46px; font-size: 16px; }
+  .dlg-foot .spacer { display: none; }
+  .picker { display: flex; flex-direction: column; gap: 10px; }
+  .pprev { order: -1; grid-template-columns: auto 1fr; align-items: center; }
+  .pprev canvas { width: 42vw; max-height: 28vh; object-fit: contain; }
+  .pgrid, .pgrid.wide { flex: 0 0 auto; max-height: none; overflow: visible; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .pgrid.wide { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  .words .wr { grid-template-columns: 1fr 120px auto; }
+  .words .wr > span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Support Sim</h1>
+  <label class="ev">Event <input type="text" id="evName" spellcheck="false" aria-label="Event name"></label>
+  <select id="convSel" aria-label="Open a saved conversation" title="Conversations saved in this browser"></select>
+  <div class="tools">
+    <button id="bProject" title="Which project's portraits, backgrounds, music and voices the preview uses">📁 <span id="projName">Sample assets</span></button>
+    <button id="bUndo" title="Undo (Ctrl+Z)">↶ Undo</button>
+    <button id="bRedo" title="Redo (Ctrl+Y)">↷ Redo</button>
+    <button id="bNew" title="Start a new support conversation">New conversation…</button>
+    <button id="bSwap" title="Swap a character, background or track everywhere it's used">Swap everywhere…</button>
+    <button id="bWords" title="Words that are always coloured, and the whisper colour">Word colors…</button>
+    <button id="bLayout" class="desk-only" aria-pressed="true" title="Steps as a strip along the bottom, or as a column on the left (T)">Layout: timeline</button>
+    <button id="bKeys" class="desk-only" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
+    <button id="bHelp" title="How this works" aria-label="How this works">?</button>
+  </div>
+</header>
+
+<main class="app">
+  <section class="col steps-col" aria-label="Steps">
+    <div class="col-head"><h2>Steps</h2><span class="hint" id="stepCount"></span><span class="spacer"></span>
+      <span class="hint hover-hint">hover a gap to insert</span><span class="hint touch-hint">tap + to insert</span></div>
+    <div class="scroll" id="chainWrap"><ol class="chain" id="chain"></ol></div>
+  </section>
+
+  <section class="stage" id="stage" aria-label="Preview">
+    <div class="screen"><canvas id="screen" width="240" height="160" aria-label="Preview. Click to play or advance."></canvas></div>
+    <div class="transport">
+      <button class="primary" id="bPlayHere" title="Play from the selected step (P)">▶ Play from here</button>
+      <button id="bPlayAll">▶ From the top</button>
+      <button id="bStop" hidden>■ Stop</button>
+      <button id="bNext" title="Advance (Space or click the screen)" hidden>Next ▸</button>
+      <button id="bAuto" aria-pressed="false" title="Advance lines by themselves">Auto-advance</button>
+      <button id="bTyping" aria-pressed="false" title="The beep while text types out">Typing beep</button>
+      <details class="snd"><summary>Volume</summary>
+        <label class="vol">Music <input type="range" id="volMusic" min="0" max="100" value="70"></label>
+        <label class="vol">SFX <input type="range" id="volSfx" min="0" max="100" value="80"></label>
+      </details>
+    </div>
+    <div class="branchbar" id="branchBar" hidden></div>
+    <div class="status" id="status" aria-live="polite"></div>
+    <nav class="mtabs" role="tablist" aria-label="Panels">
+      <button role="tab" data-tab="steps" aria-selected="false">Steps <span id="mtStepCount"></span></button>
+      <button role="tab" data-tab="edit" aria-selected="true">Edit step</button>
+      <button role="tab" data-tab="code" aria-selected="false">Code</button>
+    </nav>
+  </section>
+
+  <section class="edit-col" aria-label="Step editor">
+    <div class="help panel" id="help" hidden>
+      <div class="help-head"><b>How to build a conversation</b><button class="ghost" id="helpClose">Got it</button></div>
+      <ol>
+        <li><b>Tap a step</b> to see that moment in the picture. <b>New conversation…</b> at the top starts a fresh one with your two characters.</li>
+        <li>The <b>buttons under each character</b> add what happens next: <b>Says…</b> (a line), Smile, Bop, Move, Leave. New steps go right after the selected one.</li>
+        <li>Type a line, press <b>Enter</b>, and the other person's next line starts.</li>
+        <li><b>+</b> between steps (or <b>+ Add step</b>) slips in music, sounds, pauses, backgrounds anywhere.</li>
+        <li><b>+ → Branch</b> adds a player choice or an “if… otherwise…” (e.g. Yuel is female). Each path gets its own lane; fill it with <b>+</b>. Drag <b>⇆</b> on <b>Rejoin</b> to say where the paths meet again. <b>Preview as</b> under the picture picks which path plays.</li>
+        <li><b>Code → Copy</b> gives you the event code for LT-Maker.</li>
+      </ol>
+      <p class="hint desk-only" style="margin:6px 0 0">On a keyboard: <kbd>↑</kbd> <kbd>↓</kbd> move through steps, <kbd>Enter</kbd> edits, <kbd>Del</kbd> deletes, <kbd>Space</kbd> plays. <button class="ghost" id="bKeysHelp">All shortcuts…</button></p>
+    </div>
+    <div class="onstage" id="onstage" aria-label="Characters on stage"></div>
+    <div class="quick" id="quick"></div>
+    <div class="panel"><div class="insp" id="insp"></div></div>
+  </section>
+
+  <section class="col code-col" aria-label="Event code">
+    <div class="col-head"><h2>Event code</h2><span class="spacer"></span>
+      <button id="bEditCode" title="Type or paste event code directly">Edit code</button>
+      <button id="bCopy" class="primary">Copy</button></div>
+    <div class="scroll" id="codeWrap"><div class="codeview" id="codeView"></div></div>
+    <textarea class="codeedit" id="codeEdit" spellcheck="false" aria-label="Event code" hidden></textarea>
+    <div class="problems" id="problems" aria-live="polite"></div>
+  </section>
+</main>
+
+<div class="menu" id="insMenu" hidden role="menu"></div>
+<button class="fab" id="fab" aria-label="Add a step after the selected one">+ Add step</button>
+
+<dialog id="dPicker"><div class="dlg">
+  <div class="dlg-head"><h2 id="pkTitle">Choose</h2><span class="spacer"></span>
+    <input type="text" id="pkSearch" placeholder="Search…" aria-label="Search"></div>
+  <div class="dlg-body"><div class="picker">
+    <div class="pgrid" id="pkGrid" role="listbox"></div>
+    <div class="pprev" id="pkPrev"></div>
+  </div></div>
+  <div class="dlg-foot">
+    <label class="row hint">Or type an ID <input type="text" id="pkTyped" placeholder="e.g. Dualipa" spellcheck="false"></label>
+    <span class="spacer"></span>
+    <button id="pkCancel">Cancel</button><button class="primary" id="pkUse">Use this</button>
+  </div>
+</div></dialog>
+
+<dialog id="dSwap"><div class="dlg">
+  <div class="dlg-head"><h2>Swap everywhere</h2><span class="spacer"></span><button id="swClose">Done</button></div>
+  <div class="dlg-body" id="swBody"></div>
+</div></dialog>
+
+<dialog id="dWords"><div class="dlg" style="max-width:640px">
+  <div class="dlg-head"><h2>Word colors</h2><span class="spacer"></span><button id="wdClose">Done</button></div>
+  <div class="dlg-body" id="wdBody"></div>
+</div></dialog>
+
+<dialog id="dNew"><div class="dlg">
+  <div class="dlg-head"><h2>New support conversation</h2></div>
+  <div class="dlg-body" style="display:grid;gap:14px">
+    <div class="form2" id="nwForm"></div>
+    <details id="nwTableWrap">
+      <summary>Start from your Notion table (optional)</summary>
+      <p class="hint">Copy the rows from your support table (Left Speaker · Line LS · Line RS · Right Speaker · Beats) and paste them here. Each line becomes a step you can then build on.</p>
+      <div class="paste" id="nwPaste" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Paste table rows">Click here and paste (Ctrl+V)…</div>
+    </details>
+  </div>
+  <div class="dlg-foot"><span class="hint" id="nwNote"></span><span class="spacer"></span><button id="nwCancel">Cancel</button><button class="primary" id="nwMake">Create</button></div>
+</div></dialog>
+
+<dialog id="dProject"><div class="dlg" style="max-width:560px">
+  <div class="dlg-head"><h2>Project assets</h2><span class="spacer"></span><button id="projClose">Done</button></div>
+  <div class="dlg-body">
+    <p id="projNow" class="proj-now"></p>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <button id="projOpen" class="primary">Open project folder…</button>
+      <button id="projReopen" hidden></button>
+      <button id="projReload" hidden title="Read the folder again to pick up new or changed files">↻ Reload files</button>
+      <button id="projSample">Use sample assets</button>
+    </div>
+    <div id="projRoots" class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px" hidden></div>
+    <p class="hint" style="margin-top:12px">Pick the folder that ends in <b>.ltproj</b> (for example <code>Bizarre Adventure.ltproj</code>).
+      The preview then uses that project's characters, portraits, backgrounds, music, sounds, fonts and voices.
+      Everything is read inside your browser; nothing is uploaded, even if the browser's prompt says "upload".
+      Add new art or music to the project, then reopen or reload the folder here to see it.</p>
+    <p class="hint" id="projEmbedHint" hidden>Inside an embed (like Notion) the browser can't remember the folder, so you'll pick it once per visit.
+      Opened as its own tab in Chrome or Edge, it reopens with one click.</p>
+    <input type="file" id="projInput" webkitdirectory directory multiple hidden>
+  </div>
+</div></dialog>
+
+<dialog id="dKeys"><div class="dlg" style="max-width:640px">
+  <div class="dlg-head"><h2>Keyboard shortcuts</h2><span class="spacer"></span><button id="keysClose">Done</button></div>
+  <div class="dlg-body">
+    <table class="keys">
+      <tr><th colspan="2">Moving around</th></tr>
+      <tr><td><kbd>↑</kbd> <kbd>↓</kbd> (or <kbd>K</kbd> <kbd>J</kbd>)</td><td>Previous / next step (also <kbd>←</kbd> <kbd>→</kbd> in the timeline layout)</td></tr>
+      <tr><td><kbd>Home</kbd> <kbd>End</kbd></td><td>First / last step</td></tr>
+      <tr><td><kbd>Enter</kbd> or <kbd>E</kbd></td><td>Edit the selected step (jumps into its first field)</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Leave a text field (so the arrows work again) · stop playback</td></tr>
+      <tr><th colspan="2">Changing steps</th></tr>
+      <tr><td><kbd>L</kbd></td><td>Add a line after the selected step (the next speaker)</td></tr>
+      <tr><td><kbd>A</kbd> or <kbd>+</kbd></td><td>Add any step after the selected one (opens the list)</td></tr>
+      <tr><td><kbd>Del</kbd> / <kbd>Backspace</kbd></td><td>Delete the selected step</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Duplicate the selected step</td></tr>
+      <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> <kbd>↓</kbd></td><td>Move the step earlier / later (also drag its ⠿ handle)</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo · redo (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> also redoes)</td></tr>
+      <tr><th colspan="2">Writing a line</th></tr>
+      <tr><td><kbd>Enter</kbd></td><td>Finish the line and start the other person's next line</td></tr>
+      <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>New line inside the same box (waits for a click in game)</td></tr>
+      <tr><th colspan="2">Preview</th></tr>
+      <tr><td><kbd>Space</kbd></td><td>Play from the selected step · advance while playing</td></tr>
+      <tr><td><kbd>P</kbd> · <kbd>Shift</kbd>+<kbd>P</kbd></td><td>Play from the selected step · from the top</td></tr>
+      <tr><th colspan="2">Other</th></tr>
+      <tr><td><kbd>T</kbd></td><td>Switch between timeline and column layout</td></tr>
+      <tr><td><kbd>?</kbd></td><td>This list</td></tr>
+    </table>
+    <p class="hint">Shortcuts don't fire while you're typing in a field. Press <kbd>Esc</kbd> first.</p>
+  </div>
+</div></dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="sim-engine.js"></script>
+<script src="builder-model.js"></script>
+<script src="builder-ui.js"></script>
+</body>
+</html>
